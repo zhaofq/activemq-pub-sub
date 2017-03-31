@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:p="http://www.springframework.org/schema/p"
+	xmlns:amq="http://activemq.apache.org/schema/core" xmlns:jms="http://www.springframework.org/schema/jms"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans.xsd  
+        http://www.springframework.org/schema/context 
+        http://www.springframework.org/schema/context/spring-context-4.1.xsd  
+        http://www.springframework.org/schema/mvc 
+        http://www.springframework.org/schema/mvc/spring-mvc-4.1.xsd
+        http://www.springframework.org/schema/aop 
+        http://www.springframework.org/schema/aop/spring-aop-4.1.xsd
+        http://www.springframework.org/schema/tx 
+        http://www.springframework.org/schema/tx/spring-tx-4.1.xsd
+        http://www.springframework.org/schema/jms
+        http://www.springframework.org/schema/jms/spring-jms-4.1.xsd
+        http://activemq.apache.org/schema/core
+        http://activemq.apache.org/schema/core/activemq-core-5.7.0.xsd ">
+	<mvc:annotation-driven />
+	<!-- 对包中的所有类进行扫描，以完成Bean创建和自动依赖注入的功能 需要更改 -->
+	<context:component-scan base-package="com.java.spring" />
+	<!-- activemq连接池 -->
+	<amq:connectionFactory id="amqConnectionFactory" brokerURL="tcp://localhost:61616" userName="admin" password="admin" />
+	<!-- 配置JMS连接工厂 -->
+	<bean id="connectionFactory"
+		class="org.springframework.jms.connection.CachingConnectionFactory">
+		<constructor-arg ref="amqConnectionFactory" />
+		<property name="sessionCacheSize" value="100" />
+	</bean>
+		
+	<!-- 配置消息队列监听者（Topic） -->
+	<bean id="activeMQTopic1" class="com.java.spring.util.listener.ActiveMQTopic1" />
+	<bean id="activeMQTopic2" class="com.java.spring.util.listener.ActiveMQTopic2" />
+	<bean id="demoTopicDestination" class="org.apache.activemq.command.ActiveMQTopic">
+		<constructor-arg>
+			<value>test.topic</value>
+		</constructor-arg>
+	</bean>
+	
+    <!-- 配置JMS模板（Topic），Spring提供的JMS工具类，它发送、接收消息。 -->
+	<bean id="jmsTemplateTopic" class="org.springframework.jms.core.JmsTemplate">
+		<property name="connectionFactory" ref="connectionFactory" />
+		<property name="defaultDestination" ref="demoTopicDestination" />
+		<property name="receiveTimeout" value="10000" />
+<!-- 		true是topic，false是queue，默认是false，此处显示写出false -->
+		<property name="pubSubDomain" value="true" />
+	</bean>
+	<!-- 定义Topic消费端方式一：方式二比较简单，方式一是在Queue方式上直接修改的-->
+	<bean id="queueListenerContainer"
+		class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+		<property name="connectionFactory" ref="connectionFactory" />
+		<property name="destination" ref="demoTopicDestination" />
+		<property name="messageListener" ref="activeMQTopic1" />
+	</bean>
+	<bean id="queueListenerContainerB"
+		class="org.springframework.jms.listener.DefaultMessageListenerContainer">
+		<property name="connectionFactory" ref="connectionFactory" />
+		<property name="destination" ref="demoTopicDestination" />
+		<property name="messageListener" ref="activeMQTopic2" />
+	</bean>
+	<!-- 定义Topic消费端方式二 -->
+	<!-- 定义JmsTemplate的Topic类型 -->
+	<!-- <bean id="jmsTemplateTopic" class="org.springframework.jms.core.JmsTemplate">
+		 这个connectionFactory对应的是我们定义的Spring提供的那个ConnectionFactory对象  
+		<constructor-arg ref="connectionFactory" />
+		pub/sub模型（发布/订阅）
+		<property name="pubSubDomain" value="true" />
+	</bean> -->
+
+	<!-- 定义Topic监听器 -->
+<!-- 	<jms:listener-container destination-type="topic" container-type="default" connection-factory="connectionFactory" acknowledge="auto">
+		<jms:listener destination="test.topic" ref="activeMQTopic1"/>
+		<jms:listener destination="test.topic" ref="activeMQTopic2"/>
+	</jms:listener-container> -->
+
+</beans>
